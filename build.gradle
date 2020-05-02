@@ -15,6 +15,7 @@ plugins {
 }
 
 repositories {
+
     // Use jcenter for resolving dependencies.
     // You can declare any Maven/Ivy/file repository here.
     jcenter()
@@ -26,6 +27,9 @@ dependencies {
 
     // Use JUnit test framework
     testImplementation 'junit:junit:4.12'
+
+    compile files('jfugue-5.0.9.jar')
+
 }
 
 application {
