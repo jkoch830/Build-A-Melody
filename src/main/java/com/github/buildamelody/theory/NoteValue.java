@@ -1,4 +1,4 @@
-package com.github.buildamelody.generation;
+package com.github.buildamelody.theory;
 
 /**
  * The supported generated note durations
