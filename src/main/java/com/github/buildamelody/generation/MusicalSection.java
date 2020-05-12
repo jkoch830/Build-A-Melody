@@ -81,30 +81,29 @@ public class MusicalSection {
         List<List<Note>> measures = new ArrayList<>(numMeasures);
         List<NoteValue> noteValueSelection = getNoteValueSelection();
         int progressionCounter = 0;
+        System.out.println(noteValueSelection);
         while (measures.size() < numMeasures) { // keep generating measures
             List<Note> currMeasure = new ArrayList<>();
             Chord currChord = chordProgression.get(progressionCounter);
             while (!isMeasureFull(currMeasure)) {
-                String pitch, value;
+                String pitch = generatePitch(currChord, currMeasure.isEmpty());
 
-                // Generates pitch
-                if (firstNoteHarmonized && currMeasure.isEmpty()) { // first note
-                    String[] chordNotes = currChord.getChordNotes(keySignature);
-                    pitch = chordNotes[new Random().nextInt(Chord.CHORD_LENGTH)];
-                } else {
-                    pitch = generatePitch(currChord);
+                // Note length
+                NoteValue noteValue = noteValueSelection.get(
+                        new Random().nextInt(noteValueSelection.size()));
+                double numBeats = noteValue.getLength() * timeSignature.getDurationForBeat();
+                if (numBeats < 1) {
+                    int groupSize = 1 / numBeats;
+                    for (int i = 0; i < )
                 }
-
-                // generates length
-
             }
         }
     }
 
-    private String generatePitch(Chord currChord) {
+    private String generatePitch(Chord currChord, boolean firstNote) {
         List<String> chordNotes = Arrays.asList(currChord.getChordNotes(keySignature));
         int randomInt = new Random().nextInt(RANDOM_UPPER_LIMIT);
-        if (randomInt < harmony) { // harmonized
+        if ((firstNote && firstNoteHarmonized) || randomInt < harmony) { // harmonized
             return chordNotes.get(new Random().nextInt(Chord.CHORD_LENGTH));
         } else { // selects note that isn't harmonized
             List<String> pitchChoices = new ArrayList<>();
@@ -114,7 +113,6 @@ public class MusicalSection {
             return pitchChoices.get(new Random().nextInt(pitchChoices.size()));
         }
     }
-
 
     private boolean isMeasureFull(List<Note> measure) {
         final double THRESHOLD = .001;
@@ -128,20 +126,47 @@ public class MusicalSection {
     }
 
     private List<NoteValue> getNoteValueSelection() {
-        List<NoteValue> result = new ArrayList<>();
-        double ratio = 0;
+        List<NoteValue> selection = new ArrayList<>();
+        double weightedSum = 0;
         for (Map.Entry<NoteValue, Integer> entry : noteValueAllocation.entrySet()) {
-            ratio += entry.getKey().getLength() * entry.getValue();
+            double noteValueLength = entry.getKey().getLength();
+            int weight = entry.getValue();
+            weightedSum += noteValueLength * weight * timeSignature.getDurationForBeat();
         }
-        double totalNotes = numMeasures / ratio;
+        int totalBeats = timeSignature.getBeatsPerMeasure() * numMeasures;
+        double totalNotes = (totalBeats / weightedSum) * 100;
+        System.out.println(totalNotes);
         for (Map.Entry<NoteValue, Integer> entry : noteValueAllocation.entrySet()) {
-            int numOccurrences = (int) (entry.getValue() * totalNotes);
-            for (int i = 0; i < numOccurrences; i++) {
-                result.add(entry.getKey());
+            long numOccurrences = Math.round((entry.getValue() / 100.0) * totalNotes);
+            for (long i = 0; i < numOccurrences; i++) {
+                selection.add(entry.getKey());
             }
         }
-        return result;
+        return refineNoteValueSelection(selection);
     }
+
+    private List<NoteValue> refineNoteValueSelection(List<NoteValue> selection) {
+        int size = selection.size();
+        for (int i = size - 1; i >= 0; i--) {
+            NoteValue value = selection.get(i);
+            double numBeats = value.getLength() * timeSignature.getDurationForBeat();
+            if (numBeats < 1) {
+                while (getFrequency(selection, value) % (1 / numBeats) != 0) {
+                    selection.add(value);
+                }
+            }
+        }
+        return selection;
+    }
+
+    private static int getFrequency(List<NoteValue> selection, NoteValue query) {
+        int count = 0;
+        for (NoteValue value : selection) {
+            if (value == query) { count++; }
+        }
+        return count;
+    }
+
     /* *********************************************************** */
     /* *******************END GENERATION METHODS****************** */
     /* *********************************************************** */

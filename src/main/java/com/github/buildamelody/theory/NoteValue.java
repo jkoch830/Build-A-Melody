@@ -4,13 +4,13 @@ package com.github.buildamelody.theory;
  * The supported generated note durations
  */
 public enum NoteValue {
-    WHOLE(4, "w"),
-    HALF(2, "h"),
-    QUARTER(1, "q"),
-    EIGHTH(.5, "i"),
-    SIXTEENTH(.25, "s"),
-    TRIPLET_QUARTER(2.0/3, "q*3:2"),
-    TRIPLET_EIGHTH(1.0/3, "i*3:2");
+    WHOLE(1, "w"),
+    HALF(.5, "h"),
+    QUARTER(.25, "q"),
+    EIGHTH(.125, "i"),
+    SIXTEENTH(.0625, "s"),
+    TRIPLET_QUARTER(1.0/6, "q*3:2"),
+    TRIPLET_EIGHTH(1.0/12, "i*3:2");
 
     private final double length;
     private final String abbreviation;
