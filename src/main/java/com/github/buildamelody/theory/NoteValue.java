@@ -7,10 +7,10 @@ public enum NoteValue {
     WHOLE(1, "w"),
     HALF(.5, "h"),
     QUARTER(.25, "q"),
-    EIGHTH(.125, "i"),
-    SIXTEENTH(.0625, "s"),
     TRIPLET_QUARTER(1.0/6, "q*3:2"),
-    TRIPLET_EIGHTH(1.0/12, "i*3:2");
+    EIGHTH(.125, "i"),
+    TRIPLET_EIGHTH(1.0/12, "i*3:2"),
+    SIXTEENTH(.0625, "s");
 
     private final double length;
     private final String abbreviation;

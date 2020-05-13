@@ -80,24 +80,30 @@ public class MusicalSection {
     public void generate() {
         List<List<Note>> measures = new ArrayList<>(numMeasures);
         List<NoteValue> noteValueSelection = getNoteValueSelection();
+        System.out.println("Original selection: " + noteValueSelection);
         int progressionCounter = 0;
         System.out.println(noteValueSelection);
         while (measures.size() < numMeasures) { // keep generating measures
             List<Note> currMeasure = new ArrayList<>();
             Chord currChord = chordProgression.get(progressionCounter);
-            while (!isMeasureFull(currMeasure)) {
-                String pitch = generatePitch(currChord, currMeasure.isEmpty());
-
+            while (!isMeasureFull(currMeasure)) { // fills measure
                 // Note length
                 NoteValue noteValue = noteValueSelection.get(
                         new Random().nextInt(noteValueSelection.size()));
                 double numBeats = noteValue.getLength() * timeSignature.getDurationForBeat();
-                if (numBeats < 1) {
-                    int groupSize = 1 / numBeats;
-                    for (int i = 0; i < )
+                int groupSize = getGroupSize(noteValue);
+                if (groupSize * numBeats > availableBeats(currMeasure)) { continue; }
+                for (int i = 0; i < groupSize; i++) { // generates notes in groups
+                    String pitch = generatePitch(currChord, currMeasure.isEmpty());
+                    String octave = String.valueOf(octaveChoices.get(new Random().nextInt(octaveChoices.size())));
+                    Note note = new Note(pitch + octave + noteValue.getAbbreviation());
+                    currMeasure.add(note);
+                    noteValueSelection.remove(noteValue);
                 }
             }
+            measures.add(currMeasure);
         }
+        System.out.println(measures);
     }
 
     private String generatePitch(Chord currChord, boolean firstNote) {
@@ -125,6 +131,15 @@ public class MusicalSection {
         return Math.abs(expectedDuration - totalDuration) < THRESHOLD;
     }
 
+    private int availableBeats(List<Note> measure) {
+        double totalDuration = 0;
+        for (Note note : measure) {
+            totalDuration += note.getDuration() * timeSignature.getDurationForBeat();
+        }
+        assert(totalDuration % 1 == 0);
+        return timeSignature.getBeatsPerMeasure() - (int) totalDuration;
+    }
+
     private List<NoteValue> getNoteValueSelection() {
         List<NoteValue> selection = new ArrayList<>();
         double weightedSum = 0;
@@ -135,7 +150,6 @@ public class MusicalSection {
         }
         int totalBeats = timeSignature.getBeatsPerMeasure() * numMeasures;
         double totalNotes = (totalBeats / weightedSum) * 100;
-        System.out.println(totalNotes);
         for (Map.Entry<NoteValue, Integer> entry : noteValueAllocation.entrySet()) {
             long numOccurrences = Math.round((entry.getValue() / 100.0) * totalNotes);
             for (long i = 0; i < numOccurrences; i++) {
@@ -147,16 +161,53 @@ public class MusicalSection {
 
     private List<NoteValue> refineNoteValueSelection(List<NoteValue> selection) {
         int size = selection.size();
+        // add's values who falls under 1 beat in groups
         for (int i = size - 1; i >= 0; i--) {
             NoteValue value = selection.get(i);
             double numBeats = value.getLength() * timeSignature.getDurationForBeat();
             if (numBeats < 1) {
-                while (getFrequency(selection, value) % (1 / numBeats) != 0) {
+                int groupSize = getGroupSize(value);
+                while (getFrequency(selection, value) % groupSize != 0) {
                     selection.add(value);
                 }
             }
         }
+
+        // adds more notes to ensure there's enough beats
+        int totalNumBeats = getNoteValueSelectionBeats(selection);
+        int numBeatsRequired = timeSignature.getBeatsPerMeasure() * numMeasures - totalNumBeats;
+        for (NoteValue noteValue : NoteValue.values()) {
+            if (!noteValueAllocation.containsKey(noteValue)) { continue; }
+            double numBeats = noteValue.getLength() * timeSignature.getDurationForBeat();
+            while (numBeats <= numBeatsRequired && numBeatsRequired > 0) {
+                selection.add(noteValue);
+                numBeatsRequired -= numBeats;
+            }
+            if (numBeatsRequired == 0) { break; }
+        }
         return selection;
+    }
+
+    private int getNoteValueSelectionBeats(List<NoteValue> selection) {
+        double totalNumBeats = 0;
+        for (NoteValue value : selection) {
+            System.out.println(value + ": " + (value.getLength() * timeSignature.getDurationForBeat()));
+            totalNumBeats += value.getLength() * timeSignature.getDurationForBeat();
+        }
+        assert(totalNumBeats % 1 == 0);
+        return (int) totalNumBeats;
+    }
+
+    private int getGroupSize(NoteValue value) {
+        double beats = value.getLength() * timeSignature.getDurationForBeat();
+        double total = beats;
+        int count = 1;
+        while (total % 1 != 0 ) {
+            total += beats;
+            count++;
+        }
+        return count;
+
     }
 
     private static int getFrequency(List<NoteValue> selection, NoteValue query) {
@@ -198,6 +249,14 @@ public class MusicalSection {
 
     public void setLeftHandPatternIntervals(List<Integer> leftHandPatternIntervals) {
         this.leftHandPatternIntervals = leftHandPatternIntervals;
+    }
+
+    public void setOctaveChoices(List<Integer> octaveChoices) {
+        this.octaveChoices = octaveChoices;
+    }
+
+    public void setFirstNoteHarmonized(boolean harmonized) {
+        this.firstNoteHarmonized = harmonized;
     }
 
     public void registerListener(InputListener listener) {
