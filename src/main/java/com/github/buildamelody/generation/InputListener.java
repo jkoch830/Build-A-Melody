@@ -15,25 +15,25 @@ public interface InputListener {
      * This should clear all generated musical sections.
      * @param timeSignature The new time signature
      */
-    void onTimeSignatureSelected(TimeSignature timeSignature);
+    void onTimeSignatureSet(TimeSignature timeSignature);
 
     /**
      * Called when a new key signature is selected.
      * This should clear all generated musical sections.
      * @param keySignature The new key signature
      */
-    void onKeySignatureSelected(KeySignature keySignature);
+    void onKeySignatureSet(KeySignature keySignature);
 
     /**
      * Called when a new structure is selected.
      * @param structure The new structure
      */
-    void onNewStructure(String structure);
+    void onStructureSet(String structure);
 
     /**
      * Called when a new tempo is selected.
      * @param tempo The new tempo
      */
-    void onNewTempo(int tempo);
+    void onTempoSet(int tempo);
 
 }

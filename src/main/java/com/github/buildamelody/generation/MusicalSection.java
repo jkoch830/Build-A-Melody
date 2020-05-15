@@ -179,6 +179,12 @@ public class MusicalSection {
         }
     }
 
+    /**
+     * Checks if a measure is full based on the time signature and notes it
+     * contains.
+     * @param measure The measure
+     * @return True if the measure is full, false otherwise
+     */
     private boolean isMeasureFull(List<Note> measure) {
         final double THRESHOLD = .001;
         double totalDuration = 0;
@@ -265,6 +271,14 @@ public class MusicalSection {
         return refineNoteValueSelection(selection);
     }
 
+    /**
+     * Refines a note value selection by ensuring all note values that have
+     * duration less than 1 beat are added in groups such that the sum of the
+     * note values is a whole number, and ensures that enough notes are in the
+     * selection to fill all measures
+     * @param selection The initial selection before being refined
+     * @return The refined selection
+     */
     private List<NoteValue> refineNoteValueSelection(List<NoteValue> selection) {
         int size = selection.size();
         // add's values who falls under 1 beat in groups

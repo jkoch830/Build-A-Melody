@@ -1,11 +1,14 @@
 package com.github.buildamelody;
 
+import com.github.buildamelody.generation.FullPiece;
 import com.github.buildamelody.generation.MusicalSection;
+import com.github.buildamelody.gui.FullPieceGui;
 import com.github.buildamelody.theory.Chord;
 import com.github.buildamelody.theory.KeySignature;
 import com.github.buildamelody.theory.NoteValue;
 import org.jfugue.theory.TimeSignature;
 
+import javax.swing.SwingUtilities;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -17,7 +20,10 @@ public class Main {
 
 
     public static void main(String[] args) {
-        TimeSignature timeSignature = new TimeSignature(4, 4);
+        SwingUtilities.invokeLater(() -> {
+            FullPieceGui gui = new FullPieceGui(new FullPiece());
+        });
+  /*      TimeSignature timeSignature = new TimeSignature(4, 4);
         MusicalSection section = new MusicalSection(KeySignature.c, timeSignature);
 
         Map<NoteValue, Integer> allocation = new HashMap<>();
@@ -44,7 +50,7 @@ public class Main {
         section.setFirstNoteHarmonized(true);
         section.setLeftHandIntervals(leftHandIntervals);
         section.generate();
-        section.play();
+        section.play();*/
 
     }
 }
