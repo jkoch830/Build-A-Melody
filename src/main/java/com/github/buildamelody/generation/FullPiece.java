@@ -1,4 +1,4 @@
 package com.github.buildamelody.generation;
 
-public interface InputListener {
+public class FullPiece {
 }
