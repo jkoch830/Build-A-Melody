@@ -3,11 +3,9 @@ package com.github.buildamelody.generation;
 import com.github.buildamelody.theory.Chord;
 import com.github.buildamelody.theory.KeySignature;
 import com.github.buildamelody.theory.NoteValue;
-import org.jfugue.pattern.Atom;
 import org.jfugue.pattern.Pattern;
 
 import org.jfugue.player.Player;
-import org.jfugue.theory.ChordProgression;
 import org.jfugue.theory.Note;
 import org.jfugue.theory.TimeSignature;
 
@@ -17,7 +15,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.stream.IntStream;
 
 /**
  * A section of the full piece with its own selected generation parameters.
@@ -51,7 +48,7 @@ public class MusicalSection {
     private List<Chord> chordProgression ;
 
     // this section's left hand pattern
-    private List<Integer> leftHandPatternIntervals;
+    private List<Integer> leftHandIntervals;
 
     // choices of octaves for right hand
     private List<Integer> octaveChoices;
@@ -62,8 +59,6 @@ public class MusicalSection {
     private KeySignature keySignature;
 
     private TimeSignature timeSignature;
-
-    private Pattern generatedMusic;
 
     private List<List<Note>> rightHandMeasures = new ArrayList<>();
 
@@ -90,7 +85,6 @@ public class MusicalSection {
         generateRightHand();
         generateLeftHand();
     }
-
 
     private void generateRightHand() {
         List<List<Note>> measures = new ArrayList<>(numMeasures);
@@ -142,7 +136,7 @@ public class MusicalSection {
             put("B", 6);
         }};
 
-        double numNotes = leftHandPatternIntervals.size();
+        double numNotes = leftHandIntervals.size();
         double numBeatsPerNote = timeSignature.getBeatsPerMeasure() / numNotes;
         double noteLength = numBeatsPerNote / timeSignature.getDurationForBeat();
         NoteValue noteValue = NoteValue.getNoteValue(noteLength);
@@ -155,7 +149,7 @@ public class MusicalSection {
             List<Note> currMeasure = new ArrayList<>();
             int rootOffset = chord.getRootOffset();  // offset of root in scale
             String rootPitch = chord.getChordNotes(keySignature)[0].substring(0, 1);
-            for (int interval : leftHandPatternIntervals) {
+            for (int interval : leftHandIntervals) {
                 String pitch = keySignature.getNote(rootOffset + interval);
                 int octave = DEFAULT_LEFT_BASE_OCTAVE +
                         (octaveOffsets.get(rootPitch) + interval) / SCALE_LENGTH;
@@ -247,7 +241,6 @@ public class MusicalSection {
             }
         }
         assert (numAvailableBeats == 0);
-        System.out.println("BUENO");
     }
     /**
      * Gets a list of note values based on the inputted note value allocation
@@ -348,28 +341,34 @@ public class MusicalSection {
     /* *********************************************************** */
 
 
-    /**
-     * Plays the generated music
-     */
-    public void play() {
+    Pattern getRightHandPattern() {
         Pattern rightHand = new Pattern();
-        Pattern leftHand = new Pattern();
-
         for (List<Note> measure : rightHandMeasures) {
             for (Note note : measure) {
                 rightHand.add(note);
             }
         }
+        return rightHand;
+    }
+
+    Pattern getLeftHandPattern() {
+        Pattern leftHand = new Pattern();
         for (List<Note> measure : leftHandMeasures) {
             for (Note note : measure) {
                 leftHand.add(note);
             }
         }
-        rightHand.setVoice(1).setInstrument(1);
-        leftHand.setVoice(0).setInstrument(1);
+        return leftHand;
+    }
+
+    /**
+     * Plays the generated music
+     */
+    public void play() {
+        Pattern rightHand = getRightHandPattern().setVoice(1).setInstrument(1);
+        Pattern leftHand = getLeftHandPattern().setVoice(0).setInstrument(1);
         Player player = new Player();
         player.delayPlay(2000, rightHand, leftHand);
-
     }
 
     /* *********************************************************** */
@@ -396,8 +395,8 @@ public class MusicalSection {
         this.repetition = repetition;
     }
 
-    public void setLeftHandPatternIntervals(List<Integer> leftHandPatternIntervals) {
-        this.leftHandPatternIntervals = leftHandPatternIntervals;
+    public void setLeftHandIntervals(List<Integer> leftHandIntervals) {
+        this.leftHandIntervals = leftHandIntervals;
     }
 
     public void setOctaveChoices(List<Integer> octaveChoices) {

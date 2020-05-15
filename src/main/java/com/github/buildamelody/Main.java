@@ -31,7 +31,7 @@ public class Main {
         progression.add(Chord.v);
         progression.add(Chord.vi);
 
-        List<Integer> leftHandPattern = new ArrayList<>(Arrays.asList(
+        List<Integer> leftHandIntervals = new ArrayList<>(Arrays.asList(
                 0, 4, 7, 4, 9, 4, 7, 4
         ));
 
@@ -42,7 +42,7 @@ public class Main {
         section.setNoteValueAllocation(allocation);
         section.setChordProgression(progression);
         section.setFirstNoteHarmonized(true);
-        section.setLeftHandPatternIntervals(leftHandPattern);
+        section.setLeftHandIntervals(leftHandIntervals);
         section.generate();
         section.play();
 

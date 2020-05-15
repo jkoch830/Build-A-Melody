@@ -55,7 +55,7 @@ public enum NoteValue {
     /**
      * Gets the note value associated with a particular length
      * @param length The length of the note value being retrieved
-     * @returnd The note value
+     * @return The note value
      */
     public static NoteValue getNoteValue(double length) {
         return LOOKUP.get(length);
