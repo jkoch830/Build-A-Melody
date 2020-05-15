@@ -3,8 +3,10 @@ package com.github.buildamelody.generation;
 import com.github.buildamelody.theory.Chord;
 import com.github.buildamelody.theory.KeySignature;
 import com.github.buildamelody.theory.NoteValue;
+import org.jfugue.pattern.Atom;
 import org.jfugue.pattern.Pattern;
 
+import org.jfugue.player.Player;
 import org.jfugue.theory.ChordProgression;
 import org.jfugue.theory.Note;
 import org.jfugue.theory.TimeSignature;
@@ -15,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.stream.IntStream;
 
 /**
  * A section of the full piece with its own selected generation parameters.
@@ -25,7 +28,9 @@ public class MusicalSection {
     private final static int DEFAULT_NUM_MEASURES = 4;
     private final static int DEFAULT_REPETITION = 1;
     private final static int DEFAULT_HARMONY = 50;
-    public static final int RANDOM_UPPER_LIMIT = 100;
+    private final static int DEFAULT_LEFT_BASE_OCTAVE = 3;
+    private final static int SCALE_LENGTH = 7;
+    private final static int RANDOM_UPPER_LIMIT = 100;
 
 
     private List<InputListener> listeners;
@@ -60,6 +65,10 @@ public class MusicalSection {
 
     private Pattern generatedMusic;
 
+    private List<List<Note>> rightHandMeasures = new ArrayList<>();
+
+    private List<List<Note>> leftHandMeasures = new ArrayList<>();
+
     /**
      * Constructor for section
      * @param timeSignature The time signature
@@ -78,15 +87,25 @@ public class MusicalSection {
      * Main method for generating the music
      */
     public void generate() {
+        generateRightHand();
+        generateLeftHand();
+    }
+
+
+    private void generateRightHand() {
         List<List<Note>> measures = new ArrayList<>(numMeasures);
         List<NoteValue> noteValueSelection = getNoteValueSelection();
-        System.out.println("Original selection: " + noteValueSelection);
         int progressionCounter = 0;
         System.out.println(noteValueSelection);
         while (measures.size() < numMeasures) { // keep generating measures
             List<Note> currMeasure = new ArrayList<>();
-            Chord currChord = chordProgression.get(progressionCounter);
+            Chord currChord = chordProgression.get(progressionCounter % chordProgression.size());
             while (!isMeasureFull(currMeasure)) { // fills measure
+                // Checks if a note value exists to fill the measure
+                if (!selectionCanFillMeasure(currMeasure, noteValueSelection)) {
+                    addRequiredNoteValues(currMeasure, noteValueSelection);
+                }
+
                 // Note length
                 NoteValue noteValue = noteValueSelection.get(
                         new Random().nextInt(noteValueSelection.size()));
@@ -102,8 +121,54 @@ public class MusicalSection {
                 }
             }
             measures.add(currMeasure);
+            progressionCounter++;
         }
-        System.out.println(measures);
+
+        // copies generated measures specified by the repetition
+        rightHandMeasures.clear();
+        for (int i = 0; i < repetition; i++) {
+            rightHandMeasures.addAll(measures);
+        }
+    }
+
+    private void generateLeftHand() {
+        Map<String, Integer> octaveOffsets = new HashMap<>() {{
+            put("C", 0);
+            put("D", 1);
+            put("E", 2);
+            put("F", 3);
+            put("G", 4);
+            put("A", 5);
+            put("B", 6);
+        }};
+
+        double numNotes = leftHandPatternIntervals.size();
+        double numBeatsPerNote = timeSignature.getBeatsPerMeasure() / numNotes;
+        double noteLength = numBeatsPerNote / timeSignature.getDurationForBeat();
+        NoteValue noteValue = NoteValue.getNoteValue(noteLength);
+
+        List<List<Note>> measures = new ArrayList<>();
+
+        leftHandMeasures.clear();
+        for (int i = 0; i < numMeasures; i++) {
+            Chord chord = chordProgression.get(i % chordProgression.size());
+            List<Note> currMeasure = new ArrayList<>();
+            int rootOffset = chord.getRootOffset();  // offset of root in scale
+            String rootPitch = chord.getChordNotes(keySignature)[0].substring(0, 1);
+            for (int interval : leftHandPatternIntervals) {
+                String pitch = keySignature.getNote(rootOffset + interval);
+                int octave = DEFAULT_LEFT_BASE_OCTAVE +
+                        (octaveOffsets.get(rootPitch) + interval) / SCALE_LENGTH;
+                currMeasure.add(new Note(pitch + octave + noteValue.getAbbreviation()));
+            }
+            measures.add(currMeasure);
+        }
+
+        // copies generated measures specified by the repetition
+        leftHandMeasures.clear();
+        for (int i = 0; i < repetition; i++) {
+            leftHandMeasures.addAll(measures);
+        }
     }
 
     private String generatePitch(Chord currChord, boolean firstNote) {
@@ -131,6 +196,11 @@ public class MusicalSection {
         return Math.abs(expectedDuration - totalDuration) < THRESHOLD;
     }
 
+    /**
+     * Retrieves the available number of beats in a measure
+     * @param measure The measure
+     * @return The number of beats available
+     */
     private int availableBeats(List<Note> measure) {
         double totalDuration = 0;
         for (Note note : measure) {
@@ -140,6 +210,49 @@ public class MusicalSection {
         return timeSignature.getBeatsPerMeasure() - (int) totalDuration;
     }
 
+    /**
+     * Checks if a measure can be filled with a given note value selection
+     * @param measure The measure
+     * @param selection The selection of note values
+     * @return True if the measure can be filled, false if no note value can
+     *         fill the measure
+     */
+    private boolean selectionCanFillMeasure(List<Note> measure,
+                                            List<NoteValue> selection) {
+        int numAvailableBeats = availableBeats(measure);
+        for (NoteValue value : selection) {
+            if (value.getLength() * timeSignature.getDurationForBeat() <= numAvailableBeats) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Adds note values to the selection such that filling the measure is possible
+     * @param measure The measure
+     * @param selection The current selection of note values
+     */
+    private void addRequiredNoteValues(List<Note> measure,
+                                       List<NoteValue> selection) {
+        int numAvailableBeats = availableBeats(measure);
+        for (NoteValue noteValue : NoteValue.values()) {
+            // checks if user wants any number of these note values
+            if (noteValueAllocation.containsKey(noteValue)) {
+                double noteValueBeats = noteValue.getLength() * timeSignature.getDurationForBeat();
+                while (noteValueBeats <= numAvailableBeats) {
+                    selection.add(noteValue);
+                    numAvailableBeats -= noteValueBeats;
+                }
+            }
+        }
+        assert (numAvailableBeats == 0);
+        System.out.println("BUENO");
+    }
+    /**
+     * Gets a list of note values based on the inputted note value allocation
+     * @return The list of note values
+     */
     private List<NoteValue> getNoteValueSelection() {
         List<NoteValue> selection = new ArrayList<>();
         double weightedSum = 0;
@@ -188,16 +301,28 @@ public class MusicalSection {
         return selection;
     }
 
+    /**
+     * Calculates the number of beats a note value selection totals to
+     * @param selection The selection of note values
+     * @return The number of beats
+     */
     private int getNoteValueSelectionBeats(List<NoteValue> selection) {
         double totalNumBeats = 0;
         for (NoteValue value : selection) {
-            System.out.println(value + ": " + (value.getLength() * timeSignature.getDurationForBeat()));
             totalNumBeats += value.getLength() * timeSignature.getDurationForBeat();
         }
         assert(totalNumBeats % 1 == 0);
         return (int) totalNumBeats;
     }
 
+    /**
+     * Calculates the group size of a note value in the time signature's context
+     * A group size of a note value is the number of note values (of the same
+     * type) needed such that the total number of beats is divisible by 1
+     * @param value The note value
+     * @return The number of note values such that the total sum of beats is
+     *         divisible by 1
+     */
     private int getGroupSize(NoteValue value) {
         double beats = value.getLength() * timeSignature.getDurationForBeat();
         double total = beats;
@@ -222,6 +347,30 @@ public class MusicalSection {
     /* *******************END GENERATION METHODS****************** */
     /* *********************************************************** */
 
+
+    /**
+     * Plays the generated music
+     */
+    public void play() {
+        Pattern rightHand = new Pattern();
+        Pattern leftHand = new Pattern();
+
+        for (List<Note> measure : rightHandMeasures) {
+            for (Note note : measure) {
+                rightHand.add(note);
+            }
+        }
+        for (List<Note> measure : leftHandMeasures) {
+            for (Note note : measure) {
+                leftHand.add(note);
+            }
+        }
+        rightHand.setVoice(1).setInstrument(1);
+        leftHand.setVoice(0).setInstrument(1);
+        Player player = new Player();
+        player.delayPlay(2000, rightHand, leftHand);
+
+    }
 
     /* *********************************************************** */
     /* *****************BEGIN SET AND GET METHODS***************** */

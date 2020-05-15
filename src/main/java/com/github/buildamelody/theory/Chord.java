@@ -23,6 +23,19 @@ public enum Chord {
         this.fifthOffset = fifth;
     }
 
+    /**
+     * Retrieves the offset of the root of the chord
+     * @return The offset of the root of the chord
+     */
+    public int getRootOffset() {
+        return rootOffset;
+    }
+
+    /**
+     * Retrieves an array containing all notes in the chord
+     * @param keySignature The key signature the notes abide by
+     * @return The array containing the notes of the chord
+     */
     public String[] getChordNotes(KeySignature keySignature) {
         String[] chordNotes = new String[CHORD_LENGTH];
         String[] scale = keySignature.getScale();
