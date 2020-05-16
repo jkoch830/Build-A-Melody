@@ -1,17 +1,14 @@
 package com.github.buildamelody.gui;
 
-import com.github.buildamelody.Main;
 import com.github.buildamelody.generation.FullPiece;
 import com.github.buildamelody.generation.InputListener;
 import com.github.buildamelody.generation.MusicalSection;
 import com.github.buildamelody.theory.KeySignature;
-import org.checkerframework.checker.units.qual.C;
 import org.jfugue.theory.TimeSignature;
 
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
-import javax.swing.JFormattedTextField;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -20,22 +17,14 @@ import javax.swing.JSlider;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
-import javax.swing.border.Border;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import javax.swing.plaf.metal.MetalInternalFrameTitlePane;
-import javax.swing.text.NumberFormatter;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridLayout;
-import java.text.NumberFormat;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Hashtable;
-import java.util.Set;
-import java.util.stream.Stream;
+import java.util.Map;
 
 public class FullPieceGui implements InputListener {
     private static final String TITLE = "Build-a-Melody";
@@ -86,17 +75,17 @@ public class FullPieceGui implements InputListener {
 
     @Override
     public void onTimeSignatureSet(TimeSignature timeSignature) {
-
+        structureTabbedPane.setNewStructure(fullPiece.getStructure());
     }
 
     @Override
     public void onKeySignatureSet(KeySignature keySignature) {
-
+        structureTabbedPane.setNewStructure(fullPiece.getStructure());
     }
 
     @Override
     public void onStructureSet(String structure) {
-
+        structureTabbedPane.setNewStructure(structure);
     }
 
     @Override
@@ -287,19 +276,23 @@ public class FullPieceGui implements InputListener {
             super();
             this.structure = structure;
             this.add("Main Parameters", new MainParameters());
-            Set<Character> sections = new HashSet<>();
-            for (char section : fullPiece.getStructure().toCharArray()) { sections.add(section); }
-            for (char section : sections) {
-                MusicalSection musicalSection = new MusicalSection(
-                        fullPiece.getKeySignature(), fullPiece.getTimeSignature());
-                this.add("Section " + section,
-                        new MusicalSectionGui(musicalSection, section));
-            }
+            setNewStructure(structure);
         }
 
         void setNewStructure(String newStructure) {
+            int numTabs = this.getTabCount();
+            // Removes all tabs except for 'Main Parameters'
+            for (int i = numTabs - 1; i >= 1; i--) {
+                this.removeTabAt(i);
+            }
+            for (Map.Entry<Character, MusicalSection> entry :
+                    fullPiece.getGeneratedMusicalSections().entrySet()) {
+                char sectionID = entry.getKey();
+                MusicalSection musicalSection = entry.getValue();
+                this.add("Section " + sectionID,
+                        new MusicalSectionGui(musicalSection, sectionID));
+            }
             this.structure = newStructure;
-
         }
     }
 }

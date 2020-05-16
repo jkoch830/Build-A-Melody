@@ -70,6 +70,10 @@ public class FullPiece {
         return tempo;
     }
 
+    public Map<Character, MusicalSection> getGeneratedMusicalSections() {
+        return this.generatedMusicalSections;
+    }
+
     /**
      * Sets the key signature of the full piece. Changing this will erase all
      * generated sections
@@ -105,12 +109,13 @@ public class FullPiece {
         for (char section : structure.toCharArray()) { sections.add(section); }
         generatedMusicalSections.entrySet().removeIf(entry -> !sections.contains(entry.getKey()));
 
-        // Adds new sections
+        // Adds new sections that weren't already present
         for (char section : sections) {
             generatedMusicalSections.putIfAbsent(section,
                     new MusicalSection(keySignature, timeSignature));
         }
         notifyStructureSet(structure);
+        this.structure = structure;
         System.out.println("Structures et to: " + structure);
     }
 
