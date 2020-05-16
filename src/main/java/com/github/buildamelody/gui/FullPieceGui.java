@@ -1,13 +1,17 @@
 package com.github.buildamelody.gui;
 
+import com.github.buildamelody.Main;
 import com.github.buildamelody.generation.FullPiece;
 import com.github.buildamelody.generation.InputListener;
+import com.github.buildamelody.generation.MusicalSection;
 import com.github.buildamelody.theory.KeySignature;
+import org.checkerframework.checker.units.qual.C;
 import org.jfugue.theory.TimeSignature;
 
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
+import javax.swing.JFormattedTextField;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -15,15 +19,23 @@ import javax.swing.JRadioButton;
 import javax.swing.JSlider;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.plaf.metal.MetalInternalFrameTitlePane;
+import javax.swing.text.NumberFormatter;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.text.NumberFormat;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Hashtable;
+import java.util.Set;
+import java.util.stream.Stream;
 
 public class FullPieceGui implements InputListener {
     private static final String TITLE = "Build-a-Melody";
@@ -33,11 +45,14 @@ public class FullPieceGui implements InputListener {
     private static final int NUM_MAJOR = 15;
     private static final int NUM_MINOR = 15;
     private static final TimeSignature[] DEF_TIME_SIGNATURE_CHOICES = new TimeSignature[] {
+            new TimeSignature(2, 2),
             new TimeSignature(4, 4),
             new TimeSignature(3, 4),
             new TimeSignature(2, 4),
             new TimeSignature(3, 8),
             new TimeSignature(6, 8),
+            new TimeSignature(9, 8),
+            new TimeSignature(12, 8),
     };
     private static final String[] DEF_STRUCTURE_CHOICES = new String[] {
             "ABC",
@@ -49,7 +64,7 @@ public class FullPieceGui implements InputListener {
     private final JFrame frame;
 
     // The pane that will contain tabs corresponding to musical sections
-    private final JTabbedPane tabbedPane;
+    private final StructureTabbedPane structureTabbedPane;
 
     private FullPiece fullPiece;
 
@@ -61,11 +76,10 @@ public class FullPieceGui implements InputListener {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setPreferredSize(new Dimension(DEF_WIDTH, DEF_HEIGHT));
 
-        // Initializes tabbed panel to only contain a main parameters tab
-        tabbedPane = new JTabbedPane();
-        tabbedPane.add("Main Parameters", new MainParameters());
+        // Initializes tabbed panel
+        structureTabbedPane = new StructureTabbedPane(fullPiece.getStructure());
 
-        frame.add(tabbedPane, BorderLayout.CENTER);
+        frame.add(structureTabbedPane, BorderLayout.CENTER);
         frame.pack();
         frame.setVisible(true);
     }
@@ -95,6 +109,8 @@ public class FullPieceGui implements InputListener {
      * Key signature, time signature, structure, and tempo
      */
     private class MainParameters extends JPanel {
+        JTextField customStructureField = new JTextField("ABCDE");
+
         MainParameters() {
             super();
             this.setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
@@ -112,26 +128,32 @@ public class FullPieceGui implements InputListener {
             timeSigLabel.setFont(font);
             structureLabel.setFont(font);
             tempoLabel.setFont(font);
+            Dimension labelPadding = new Dimension(0, 5);
+            Dimension parameterPadding = new Dimension(0, 50);
+
+            // Key signature
             this.add(keySigLabel);
-            this.add(Box.createRigidArea(new Dimension(0,5)));
+            this.add(Box.createRigidArea(labelPadding));
             this.add(getKeySignatureChoices());
-            this.add(Box.createRigidArea(new Dimension(0,50)));
+            this.add(Box.createRigidArea(parameterPadding));
 
+            // Time signature
             this.add(timeSigLabel);
-            this.add(Box.createRigidArea(new Dimension(0,5)));
+            this.add(Box.createRigidArea(labelPadding));
             this.add(getTimeSignatureChoices());
-            this.add(Box.createRigidArea(new Dimension(0,50)));
+            this.add(Box.createRigidArea(parameterPadding));
 
+            // Structure
             this.add(structureLabel);
-            this.add(Box.createRigidArea(new Dimension(0,5)));
+            this.add(Box.createRigidArea(labelPadding));
             this.add(getStructureChoices());
-            this.add(Box.createRigidArea(new Dimension(0,50)));
+            this.add(Box.createRigidArea(parameterPadding));
 
+            // Tempo
             this.add(tempoLabel);
-            this.add(Box.createRigidArea(new Dimension(0,5)));
+            this.add(Box.createRigidArea(labelPadding));
             this.add(getTempoSlider());
-            this.add(Box.createRigidArea(new Dimension(0,50)));
-            //displayTempo();
+            this.add(Box.createRigidArea(parameterPadding));
         }
 
         private JPanel getKeySignatureChoices() {
@@ -147,6 +169,7 @@ public class FullPieceGui implements InputListener {
                         fullPiece.setKeySignature(currentKey));
                 keyGroup.add(majorKey);
                 keySignatureContainer.add(majorKey);
+                if (i == 0) { majorKey.setSelected(true); }
             }
             keySignatureContainer.add(new JLabel("Minor: "));
             for (int i = NUM_MAJOR; i < NUM_MAJOR + NUM_MINOR; i++) { // minor keys
@@ -169,9 +192,13 @@ public class FullPieceGui implements InputListener {
             // Default choices
             for (TimeSignature timeSignature : DEF_TIME_SIGNATURE_CHOICES) {
                 JRadioButton timeSigButton = new JRadioButton();
-                JPanel timeSigLabelPanel = new JPanel(new GridLayout(2,1));
-                timeSigLabelPanel.add(new JLabel(String.valueOf(timeSignature.getBeatsPerMeasure())));
-                timeSigLabelPanel.add(new JLabel(String.valueOf(timeSignature.getDurationForBeat())));
+                JPanel timeSigLabelPanel = new JPanel(new BorderLayout());
+                JLabel beatsLabel = new JLabel(String.valueOf(timeSignature.getBeatsPerMeasure()));
+                JLabel durationLabel = new JLabel(String.valueOf(timeSignature.getDurationForBeat()));
+                beatsLabel.setHorizontalAlignment(SwingConstants.CENTER);
+                durationLabel.setHorizontalAlignment(SwingConstants.CENTER);
+                timeSigLabelPanel.add(beatsLabel, BorderLayout.NORTH);
+                timeSigLabelPanel.add(durationLabel, BorderLayout.SOUTH);
                 timeSigButton.addActionListener(e ->
                         fullPiece.setTimeSignature(timeSignature));
                 timeSignatureGroup.add(timeSigButton);
@@ -179,7 +206,8 @@ public class FullPieceGui implements InputListener {
                 timeSignatureContainer.add(timeSigLabelPanel);
                 timeSignatureContainer.add(Box.createRigidArea(new Dimension(10,0)));
             }
-
+            JRadioButton defaultChoice = (JRadioButton) timeSignatureContainer.getComponents()[0];
+            defaultChoice.setSelected(true);
             timeSignatureContainer.setMaximumSize(timeSignatureContainer.getPreferredSize());
             return timeSignatureContainer;
         }
@@ -199,44 +227,79 @@ public class FullPieceGui implements InputListener {
                 structureContainer.add(structureButton);
             }
             // Custom choice
-            JTextField customField = new JTextField("Custom");
-            int preferredHeight = customField.getPreferredSize().height;
-            customField.setPreferredSize(new Dimension(100, preferredHeight));
-            customField.getDocument().addDocumentListener(new DocumentListener() {
+            int preferredHeight = customStructureField.getPreferredSize().height;
+            customStructureField.setPreferredSize(new Dimension(100, preferredHeight));
+            JRadioButton customButton = new JRadioButton();
+            customButton.addActionListener(e ->
+                    fullPiece.setStructure(customStructureField.getText())
+            );
+            customStructureField.getDocument().addDocumentListener(new DocumentListener() {
                 @Override
                 public void insertUpdate(DocumentEvent e) {
-                    fullPiece.setStructure(customField.getText());
+                    if (customButton.isSelected()) {
+                        fullPiece.setStructure(customStructureField.getText());
+                    }
                 }
                 @Override
                 public void removeUpdate(DocumentEvent e) {
-                    fullPiece.setStructure(customField.getText());
+                    // If empty, structure is set to first choice
+                    if (customStructureField.getText().equals("")) {
+                        JRadioButton defaultChoice = (JRadioButton) structureContainer.getComponents()[0];
+                        defaultChoice.setSelected(true);
+                        fullPiece.setStructure(DEF_STRUCTURE_CHOICES[0]);
+                    }
+                    else if (customButton.isSelected()) {
+                        fullPiece.setStructure(customStructureField.getText());
+                    }
                 }
                 @Override
                 public void changedUpdate(DocumentEvent e) {
-                    fullPiece.setStructure(customField.getText());
+                    throw new IllegalStateException();
                 }
             });
-            JRadioButton customButton = new JRadioButton();
-            customButton.addActionListener(e ->
-                    fullPiece.setStructure(customField.getText())
-            );
             structureGroup.add(customButton);
             structureContainer.add(customButton);
-            structureContainer.add(customField);
+            structureContainer.add(customStructureField);
+            JRadioButton defaultChoice = (JRadioButton) structureContainer.getComponents()[0];
+            defaultChoice.setSelected(true);
             structureContainer.setMaximumSize(structureContainer.getPreferredSize());
             return structureContainer;
         }
 
         private JSlider getTempoSlider() {
-            JSlider slider = new JSlider(20, 200);
+            JSlider slider = new JSlider(40, 200);
             slider.addChangeListener(e ->
                     fullPiece.setTempo(slider.getValue()));
-            Hashtable<Integer, JLabel> labels = new Hashtable<>();
-            labels.put(20, new JLabel("20"));
-            labels.put(200, new JLabel("200"));
-            slider.setLabelTable(labels);
+            slider.setMajorTickSpacing(20);
             slider.setPaintLabels(true);
+            slider.setPaintTicks(true);
             return slider;
+        }
+    }
+
+    /**
+     * Tabbed pane that is modified according to the set structure
+     */
+    private class StructureTabbedPane extends JTabbedPane {
+        private String structure;
+
+        StructureTabbedPane(String structure) {
+            super();
+            this.structure = structure;
+            this.add("Main Parameters", new MainParameters());
+            Set<Character> sections = new HashSet<>();
+            for (char section : fullPiece.getStructure().toCharArray()) { sections.add(section); }
+            for (char section : sections) {
+                MusicalSection musicalSection = new MusicalSection(
+                        fullPiece.getKeySignature(), fullPiece.getTimeSignature());
+                this.add("Section " + section,
+                        new MusicalSectionGui(musicalSection, section));
+            }
+        }
+
+        void setNewStructure(String newStructure) {
+            this.structure = newStructure;
+
         }
     }
 }

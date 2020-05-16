@@ -111,6 +111,7 @@ public class FullPiece {
                     new MusicalSection(keySignature, timeSignature));
         }
         notifyStructureSet(structure);
+        System.out.println("Structures et to: " + structure);
     }
 
     public void setTempo(int tempo) {
