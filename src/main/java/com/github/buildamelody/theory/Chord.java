@@ -44,4 +44,32 @@ public enum Chord {
         chordNotes[2] = scale[fifthOffset % 7];
         return chordNotes;
     }
+
+    public static Chord getChordFromNumeral(String numeral) {
+        switch(numeral) {
+            case "I":
+            case "i":
+                return i;
+            case "II":
+            case "ii":
+                return ii;
+            case "III":
+            case "iii":
+                return iii;
+            case "IV":
+            case "iv":
+                return iv;
+            case "V":
+            case "v":
+                return v;
+            case "VI":
+            case "vi":
+                return vi;
+            case "VII":
+            case "vii":
+                return vii;
+            default:
+                throw new IllegalArgumentException("Illegal numeral: " + numeral);
+        }
+    }
 }

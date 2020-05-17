@@ -395,6 +395,7 @@ public class MusicalSection {
 
     public void setChordProgression(List<Chord> chordProgression) {
         this.chordProgression = chordProgression;
+        System.out.println("New progression: " + chordProgression);
     }
 
     public void setHarmony(int harmony) {
@@ -423,6 +424,18 @@ public class MusicalSection {
 
     public void registerListener(InputListener listener) {
         this.listeners.add(listener);
+    }
+
+    public KeySignature getKeySignature() {
+        return this.keySignature;
+    }
+
+    public int getNumMeasures() {
+        return this.numMeasures;
+    }
+
+    public int getRepetition() {
+        return this.repetition;
     }
 
     /* *********************************************************** */

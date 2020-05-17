@@ -105,12 +105,18 @@ public class FullPiece {
      */
     public void setStructure(String structure) {
         // Removes sections that aren't present in new structure
-        Set<Character> sections = new HashSet<>();
-        for (char section : structure.toCharArray()) { sections.add(section); }
-        generatedMusicalSections.entrySet().removeIf(entry -> !sections.contains(entry.getKey()));
+        Set<Character> oldSections = new HashSet<>();
+        Set<Character> newSections = new HashSet<>();
+        for (char section : this.structure.toCharArray()) { oldSections.add(section); }
+        for (char section : structure.toCharArray()) { newSections.add(section); }
+        for (char section : oldSections) {
+            if (!newSections.contains(section)) {
+                generatedMusicalSections.remove(section);
+            }
+        }
 
         // Adds new sections that weren't already present
-        for (char section : sections) {
+        for (char section : newSections) {
             generatedMusicalSections.putIfAbsent(section,
                     new MusicalSection(keySignature, timeSignature));
         }

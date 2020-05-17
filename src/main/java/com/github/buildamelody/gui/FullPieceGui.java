@@ -24,7 +24,10 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class FullPieceGui implements InputListener {
     private static final String TITLE = "Build-a-Melody";
@@ -75,12 +78,12 @@ public class FullPieceGui implements InputListener {
 
     @Override
     public void onTimeSignatureSet(TimeSignature timeSignature) {
-        structureTabbedPane.setNewStructure(fullPiece.getStructure());
+        structureTabbedPane.reinitialize();
     }
 
     @Override
     public void onKeySignatureSet(KeySignature keySignature) {
-        structureTabbedPane.setNewStructure(fullPiece.getStructure());
+        structureTabbedPane.reinitialize();
     }
 
     @Override
@@ -219,9 +222,11 @@ public class FullPieceGui implements InputListener {
             int preferredHeight = customStructureField.getPreferredSize().height;
             customStructureField.setPreferredSize(new Dimension(100, preferredHeight));
             JRadioButton customButton = new JRadioButton();
-            customButton.addActionListener(e ->
-                    fullPiece.setStructure(customStructureField.getText())
-            );
+            customButton.addItemListener(e -> {
+                    if (!customStructureField.getText().isEmpty()) {
+                        fullPiece.setStructure(customStructureField.getText());
+                    }
+            });
             customStructureField.getDocument().addDocumentListener(new DocumentListener() {
                 @Override
                 public void insertUpdate(DocumentEvent e) {
@@ -231,13 +236,7 @@ public class FullPieceGui implements InputListener {
                 }
                 @Override
                 public void removeUpdate(DocumentEvent e) {
-                    // If empty, structure is set to first choice
-                    if (customStructureField.getText().equals("")) {
-                        JRadioButton defaultChoice = (JRadioButton) structureContainer.getComponents()[0];
-                        defaultChoice.setSelected(true);
-                        fullPiece.setStructure(DEF_STRUCTURE_CHOICES[0]);
-                    }
-                    else if (customButton.isSelected()) {
+                    if (!customStructureField.getText().equals("") && customButton.isSelected()) {
                         fullPiece.setStructure(customStructureField.getText());
                     }
                 }
@@ -280,6 +279,40 @@ public class FullPieceGui implements InputListener {
         }
 
         void setNewStructure(String newStructure) {
+            Set<Character> newSections = new HashSet<>();
+            for (char section : newStructure.toCharArray()) { newSections.add(section); }
+
+            int numTabs = this.getTabCount();
+            Map<Character, JPanel> savedGuis = new HashMap<>();
+
+            // Removes all tabs not present in newStructure and saves others
+            for (int i = numTabs - 1; i >= 1; i--) {
+                String title = this.getTitleAt(i);
+                char section = title.substring(title.length() - 1).toCharArray()[0];
+                if (newSections.contains(section)) {
+                    this.getComponentAt(i);
+                    JPanel gui = (JPanel) this.getComponentAt(i);
+                    savedGuis.put(section, gui);
+                }
+                this.removeTabAt(i);
+            }
+
+            // Adds new tabs
+            for (Map.Entry<Character, MusicalSection> entry :
+                    fullPiece.getGeneratedMusicalSections().entrySet()) {
+                char sectionID = entry.getKey();
+                if (savedGuis.containsKey(sectionID)) { // Gui was saved
+                    this.add("Section " + sectionID, savedGuis.get(sectionID));
+                } else { // New gui
+                    MusicalSection musicalSection = entry.getValue();
+                    this.add("Section " + sectionID,
+                            new MusicalSectionGui(musicalSection, sectionID));
+                }
+            }
+            this.structure = newStructure;
+        }
+
+        void reinitialize() {
             int numTabs = this.getTabCount();
             // Removes all tabs except for 'Main Parameters'
             for (int i = numTabs - 1; i >= 1; i--) {
@@ -292,7 +325,6 @@ public class FullPieceGui implements InputListener {
                 this.add("Section " + sectionID,
                         new MusicalSectionGui(musicalSection, sectionID));
             }
-            this.structure = newStructure;
         }
     }
 }
